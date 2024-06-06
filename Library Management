@@ -1,0 +1,251 @@
+#include<iostream>
+#include<fstream>
+#include<ctime>
+#include<bits/stdc++.h>2
+using namespace std;
+
+struct Books {
+    int id;
+    char bookName[50];
+    char authorName[50];
+    char date[12];
+} b;
+
+struct Student {
+    int id;
+    char sName[50];
+    char sClass[50];
+    int sRoll;
+    char bookName[50];
+    char date[12];
+} s;
+
+fstream fp;
+
+void addBook();
+void booksList();
+void del();
+void issueBook();
+void issueList();
+
+int main() {
+    int ch;
+
+    while (1) {
+        system("cls");
+        cout << "<== Library Management System ==>\n";
+        cout << "1. Add Book\n";
+        cout << "2. Books List\n";
+        cout << "3. Remove Book\n";
+        cout << "4. Issue Book\n";
+        cout << "5. Issued Book List\n";
+        cout << "0. Exit\n\n";
+        cout << "Enter your choice: ";
+        cin >> ch;
+
+        switch (ch) {
+        case 0:
+            exit(0);
+
+        case 1:
+            addBook();
+            break;
+
+        case 2:
+            booksList();
+            break;
+
+        case 3:
+            del();
+            break;
+
+        case 4:
+            issueBook();
+            break;
+
+        case 5:
+            issueList();
+            break;
+
+        default:
+            cout << "Invalid Choice...\n\n";
+        }
+        cout << "Press Any Key To Continue...";
+        cin.ignore();
+        cin.get();
+    }
+
+    return 0;
+}
+
+void addBook() {
+    char myDate[12];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(myDate, "%02d/%02d/%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    strcpy(b.date, myDate);
+
+    fp.open("books.txt", ios::app | ios::binary);
+
+    cout << "Enter book id: ";
+    cin >> b.id;
+
+    cout << "Enter book name: ";
+    cin.ignore();
+    cin.getline(b.bookName, 50);
+
+    cout << "Enter author name: ";
+    cin.getline(b.authorName, 50);
+
+    cout << "Book Added Successfully";
+
+    fp.write(reinterpret_cast<char*>(&b), sizeof(b));
+    fp.close();
+}
+
+void booksList() {
+    system("cls");
+    cout << "<== Available Books ==>\n\n";
+    cout << left << setw(10) << "Book id" << setw(30) << "Book Name" << setw(20) << "Author" << "Date\n\n";
+
+    fp.open("books.txt", ios::in | ios::binary);
+    while (fp.read(reinterpret_cast<char*>(&b), sizeof(b))) {
+        cout << left << setw(10) << b.id << setw(30) << b.bookName << setw(20) << b.authorName << b.date << endl;
+    }
+
+    fp.close();
+}
+
+void del() {
+    int id;
+    int f = 0;
+    system("cls");
+    cout << "<== Remove Books ==>\n\n";
+    cout << "Enter Book id to remove: ";
+    cin >> id;
+
+    fstream ft;
+    fp.open("books.txt", ios::in | ios::binary);
+    ft.open("temp.txt", ios::out | ios::binary);
+
+    // Open issue.txt in both read and write mode
+    fstream issueFile("issue.txt", ios::in | ios::out | ios::binary);
+
+    // Temporary Student object to read from issue.txt
+    Student tempStudent;
+
+    while (fp.read(reinterpret_cast<char*>(&b), sizeof(b))) {
+        if (id == b.id) {
+            f = 1;
+        }
+        else {
+            ft.write(reinterpret_cast<char*>(&b), sizeof(b));
+        }
+    }
+
+    if (f == 1) {
+        cout << "\n\nDeleted Successfully.";
+
+        // Move file pointer to the beginning
+        issueFile.seekg(0, ios::beg);
+
+        // Create a temporary file to write the modified data
+        fstream tempIssueFile("temp_issue.txt", ios::out | ios::binary);
+
+        // Read and check each record in issue.txt
+        while (issueFile.read(reinterpret_cast<char*>(&tempStudent), sizeof(tempStudent))) {
+            // If the book id matches, skip writing this record to temp_issue.txt
+            if (tempStudent.id != id) {
+                tempIssueFile.write(reinterpret_cast<char*>(&tempStudent), sizeof(tempStudent));
+            }
+        }
+
+        // Close both files
+        issueFile.close();
+        tempIssueFile.close();
+
+        // Remove the original issue.txt file
+        remove("issue.txt");
+
+        // Rename the temporary file to issue.txt
+        rename("temp_issue.txt", "issue.txt");
+    }
+    else {
+        cout << "\n\nRecord Not Found !";
+    }
+
+    // Close other files
+    fp.close();
+    ft.close();
+    remove("books.txt");
+    rename("temp.txt", "books.txt");
+}
+
+
+void issueBook() {
+    char myDate[12];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(myDate, "%02d/%02d/%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    strcpy(s.date, myDate);
+
+    int f = 0;
+
+    system("cls");
+    cout << "<== Issue Books ==>\n\n";
+
+    cout << "Enter Book id to issue: ";
+    cin >> s.id;
+
+    // Check if we have a book of the given id
+    fp.open("books.txt", ios::in | ios::binary);
+
+    while (fp.read(reinterpret_cast<char*>(&b), sizeof(b))) {
+        if (b.id == s.id) {
+            strcpy(s.bookName, b.bookName);
+            f = 1;
+            break;
+        }
+    }
+
+    if (f == 0) {
+        cout << "No book found with this id\n";
+        cout << "Please try again...\n\n";
+        return;
+    }
+
+    fp.close();
+
+    fp.open("issue.txt", ios::app | ios::binary);
+
+    cout << "Enter Student Name: ";
+    cin.ignore();
+    cin.getline(s.sName, 50);
+
+    cout << "Enter Student Class: ";
+    cin.getline(s.sClass, 50);
+
+    cout << "Enter Student Roll: ";
+    cin >> s.sRoll;
+
+    cout << "Book Issued Successfully\n\n";
+
+    fp.write(reinterpret_cast<char*>(&s), sizeof(s));
+    fp.close();
+}
+
+void issueList() {
+    system("cls");
+    cout << "<== Book Issue List ==>\n\n";
+
+    cout << left << setw(10) << "S.id" << setw(30) << "Name" << setw(20) << "Class" << setw(10) << "Roll" << setw(30) << "Book Name" << "Date\n\n";
+
+    fp.open("issue.txt", ios::in | ios::binary);
+    while (fp.read(reinterpret_cast<char*>(&s), sizeof(s))) {
+        cout << left << setw(10) << s.id << setw(30) << s.sName << setw(20) << s.sClass << setw(10) << s.sRoll << setw(30) << s.bookName << s.date << endl;
+    }
+
+    fp.close();
+}
+
+
